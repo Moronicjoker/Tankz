@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title></title>
+        <script src="three.js" type="text/javascript"></script>
+
+    
+        <script>
+        <!--
+
+      
+            var camera, scene, renderer;
+            
+            var loader = new THREE.JSONLoader();
+
+            var clock = new THREE.Clock();
+
+            var groupHead;
+
+            var renderReady = 0;
+
+            var mesh = null;
+
+            var index = 0;
+
+            var mouseX = 0, mouseY = 0;
+
+            var tower = null;
+            var tankPosition = {
+                x : 0,
+                y : 0,
+                rotation : 0,
+                towerrot : 0,
+                color: '#ff0099'
+            };
+            var speed = 20;
+
+
+            document.addEventListener("DOMContentLoaded",function(){
+                 init();
+                 loadModel();
+            },false);
+
+
+            document.addEventListener("keydown",function(event){
+                if( mesh == null ) return;
+                //event.preventDefault();
+                if( event.keyCode == 38 ){ // forward
+                    moveTank(1);
+                };
+
+                if( event.keyCode == 40 ){ // backward
+                    moveTank(-1);
+                };
+
+                if( event.keyCode == 37 ){ // left
+                    if (true === event.ctrlKey) {
+                        tankPosition.towerrot = ( tankPosition.towerrot - Math.PI / 45 ); 
+                    } else {
+                        tankPosition.rotation = ( tankPosition.rotation - Math.PI / 90 );
+                        wtf.innerHTML = tankPosition.rotation;                   
+                    }
+                };
+
+                if( event.keyCode == 39 ){ // left
+                    if (true === event.ctrlKey) {
+                        tankPosition.towerrot = ( tankPosition.towerrot + Math.PI / 45 ); 
+                    } else {
+                        tankPosition.rotation = ( tankPosition.rotation + Math.PI / 90 ); 
+                        wtf.innerHTML = tankPosition.rotation;
+                    }
+                };
+
+                if( event.keyCode == 13 ){ // return = fire
+                    tankColor = 'yellow';
+                    setTimeout(function(){tankColor = 'red'},300);
+                };
+            },false);
+
+
+
+
+            document.addEventListener("mousemove",function(event){
+
+
+                mouseX = ( event.clientX - window.innerWidth / 2 );
+                mouseY = ( event.clientY - window.innerHeight / 2 );
+
+  
+                //mesh.rotation.y = mouseX * 0.01;
+              
+
+            },false);
+
+            document.addEventListener("mousedown",function(event){
+                index=0;document.getElementById("wtf").innerHTML = "camera";
+            },false);
+
+            
+            function init() {
+                /**************************************************************
+                    Basic Scene Setup
+                **************************************************************/
+                camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
+                
+                camera.position.z = 600;
+                camera.position.y = 300;
+                //camera.rotation.x = - Math.PI / 6;
+/*
+                camera.lookAt(new THREE.Vector3(0,0,0));
+*/
+
+                scene = new THREE.Scene();
+
+                renderer = new THREE.WebGLRenderer({antialias: true});
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                renderer.setClearColor(0x222222, 0.6);
+                renderer.shadowMapEnabled = true;
+                renderer.shadowMapType = THREE.PCFSoftShadowMap;
+                document.body.appendChild( renderer.domElement );
+
+                /*
+                // add subtle blue ambient lighting
+                var ambientLight = new THREE.AmbientLight(0x000000);
+                scene.add(ambientLight);
+                  
+                // directional lighting
+                var directionalLight = new THREE.DirectionalLight(0xffffff);
+                directionalLight.position.set(0, 0, 10).normalize();
+                scene.add(directionalLight);
+                
+
+                // directional lighting
+                var directionalLight = new THREE.DirectionalLight(0x00ff00);
+                directionalLight.position.set(2, 2, -5).normalize();
+                scene.add(directionalLight);
+                */
+
+                // white spotlight shining from the side, casting shadow 
+                var spotLight = new THREE.SpotLight( 0xffffff ); 
+                spotLight.position.set( 100, 1000, 300 ); 
+                spotLight.castShadow = true; 
+                spotLight.shadowMapWidth = 1024; 
+                spotLight.shadowMapHeight = 1024; 
+                spotLight.shadowCameraNear = 500; 
+                spotLight.shadowCameraFar = 4000; 
+                spotLight.shadowCameraFov = 30; 
+                scene.add( spotLight );
+
+
+                var newMat =  new THREE.MeshLambertMaterial({
+                    color: 0xbbbbbb
+                });
+
+                // some cubes
+                cube = new THREE.Mesh( new THREE.CubeGeometry( 200, 200, 200 ), newMat );
+                cube.position.y = 0;
+                cube.position.x = -200;
+                
+                cube.castShadow = true;
+                cube.receiveShadow = true;
+
+                scene.add(cube);
+
+
+                cube2 = new THREE.Mesh( new THREE.CubeGeometry( 200, 200, 200 ), newMat );
+                cube2.position.y = 0;
+                cube2.position.x = 200;
+
+                cube2.castShadow = true;
+                cube2.receiveShadow = true;
+
+                scene.add(cube2);
+                
+
+                // plane
+                var geometry = new THREE.PlaneGeometry( 1500, 1500, 32, 32 );
+                //var material = new THREE.MeshBasicMaterial( {color: 0xbbbbbb, side: THREE.DoubleSide} );
+                var plane = new THREE.Mesh( geometry, newMat );
+                plane.rotation.x = -Math.PI / 2;
+
+                plane.castShadow = true;
+                plane.receiveShadow = true;
+
+                scene.add(plane);
+            
+                renderer.render( scene, camera );                
+
+            };   
+            
+           function loadModel(){
+
+                groupHead = new THREE.Object3D();
+
+                loader.load( 'test.js', function ( geometry, materials ) {
+
+                    createScene( geometry, materials, 0, 0, -300, 60 )
+
+                });
+
+
+           }; // END loadModel
+      
+
+
+
+            function render() {
+
+        /*        tank.style.left = tankPosition.x + 'px';
+                tank.style.top = tankPosition.y + 'px';
+                tank.style.transform = 'rotate('+ tankPosition.rotation +'rad)';
+                tank.style.backgroundColor = tankColor;
+
+                tower.style.transform = 'rotate('+ tankPosition.towerrot +'rad)';
+*/
+
+    
+                 mesh.position.x = tankPosition.x;
+                 mesh.position.z = tankPosition.y;
+
+                mesh.rotation.y = tankPosition.rotation * - 1;
+
+                /* static camera
+                 camera.position.x = tankPosition.x;
+                 camera.position.z = tankPosition.y + 300;
+                */
+
+                var camPosX = tankPosition.x + (speed - 600) * Math.cos( tankPosition.rotation + Math.PI / 2  );
+                var camPosY = tankPosition.y + (speed - 600) * Math.sin( tankPosition.rotation + Math.PI / 2  ); 
+
+                camera.position.x = camPosX;
+                camera.position.z = camPosY;
+
+
+                camera.rotation.y =  - tankPosition.rotation + Math.PI;
+
+                /*
+                camera.rotation.x = 0;
+
+                camera.rotation.y = - tankPosition.rotation + Math.PI ;
+
+                camera.rotation.x = - Math.PI / 6;
+                */
+
+                //camera.lookAt(new THREE.Vector3(tankPosition.y,tankPosition.x,0));
+
+
+
+                //camera.rotation.y = tankPosition.rotation + Math.PI / 2 ;
+
+
+
+                renderer.render( scene, camera );
+
+                requestAnimationFrame(render);
+
+            };
+
+
+
+            var currentAnimationTime = 0;
+
+
+
+            function ensureLoop( animation ) {
+
+                for ( var i = 0; i < animation.hierarchy.length; i ++ ) {
+
+                    var bone = animation.hierarchy[ i ];
+
+                    var first = bone.keys[ 0 ];
+                    var last = bone.keys[ bone.keys.length - 1 ];
+
+                    last.pos = first.pos;
+                    last.rot = first.rot;
+                    last.scl = first.scl;
+
+                }
+
+            }
+
+            function createScene( geometry, materials, x, y, z, s ) {
+
+                //ensureLoop( geometry.animations[0] );
+
+                /*
+                geometry.computeBoundingBox();
+                bb = geometry.boundingBox;
+
+                console.log('materials.length: ',materials.length);
+
+                for ( var i = 0; i < materials.length; i ++ ) {
+
+                    var m = materials[ i ];
+                    m.skinning = true;
+                    m.morphTargets = true;
+
+                    m.color.setHSL( 0.6, 0, 0.6 );
+                    m.ambient.copy( m.color );
+
+                    m.combine = THREE.MixOperation;
+                    m.reflectivity = 0.75;
+                
+
+                    m.wrapAround = true;
+
+                }
+
+                console.log('1 end of materials loop');
+
+                //mesh = new THREE.SkinnedMesh( geometry, new THREE.MeshFaceMaterial( materials ) );
+                //mesh.position.set( x, y - bb.min.y * s, z );
+                
+                */
+
+                //var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+
+                //mesh = new THREE.Mesh( geometry, new THREE.MeshFaceMaterial( materials ) ); 
+                
+                //mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( {color: tankPosition.color, side: THREE.DoubleSide} ) ); 
+
+                /*
+                var newMat = new THREE.MeshPhongMaterial(
+                    {
+                        // light
+                        specular: '#ffffff',
+                        // intermediate
+                        color: tankPosition.color,
+                        // dark
+                        emissive: '#777777',
+                        shininess: 0 
+                    }
+                );
+                */
+
+                var newMat =  new THREE.MeshLambertMaterial({
+                    color: tankPosition.color
+                });
+
+                mesh = new THREE.Mesh( geometry, newMat ); 
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+
+                //mesh.rotation.set( 0, 90, 0 );
+                mesh.scale.set( s, s, s );
+                scene.add( mesh );
+
+                mesh.position.y = 10;
+
+
+
+
+                console.log('2 mesh added to scene');
+
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+                console.log('2 mesh added to scene');
+
+                render();
+
+            }
+
+            function moveTank( direction ){ // expects 1 or -1
+                console.log('moveTank');
+                if( mesh !== null ){
+                    if( direction == 1 ) {
+                        var posX = tankPosition.x + speed * Math.cos( tankPosition.rotation + Math.PI / 2  );
+                        var posY = tankPosition.y + speed * Math.sin( tankPosition.rotation + Math.PI / 2  );                        
+                    };
+
+                    if( direction == -1 ) {
+                        var posX = tankPosition.x + speed * Math.cos( tankPosition.rotation + Math.PI / 2  + Math.PI );
+                        var posY = tankPosition.y + speed * Math.sin( tankPosition.rotation + Math.PI / 2  + Math.PI );                      
+                    };
+
+                  /*  if( posX <  0){
+                        posX =  0;
+                    };
+
+                    if( posY <  0 ){
+                        posY = 0;
+                    };
+
+                    if( posX > window.innerWidth  - 100){
+                        posX = window.innerWidth - 100;
+                    };
+
+                    if( posY > window.innerHeight - 100 ){
+                        posY = window.innerHeight - 100;
+                    };*/
+
+                    tankPosition.x = posX;
+                    tankPosition.y = posY;
+                };
+            };
+
+
+        -->
+        </script>
+
+
+
+    </head>
+
+    <!--body onkeydown="showKeyCode(event);"-->
+    <body style="overflow:hidden;">
+
+        <div  style="position:absolute;top:20px;left:20px;color:white;">
+        in Firefox press key and move mouse left to right: <br>
+        "1" camera <br>
+        "2" ridge shape key <br>
+        "3" spikes shape key <br>
+        "4" play complete animation <br>
+        "5" pause animation <br>
+        "6" continue animation <br>
+        "7" breath shape key <br>
+        "8" scrub through animation <br>
+        "9" play animation part 1 <br>
+        "0" play animation part 2 <br>
+
+        </div>
+
+        <div id="wtf" style="position:absolute;bottom:20px;left:20px;color:red">camera</div>
+
+        <!--button type="button" onmousedown="render()" style="position:absolute;top:20px;left:20px;" >render</button>
+        <button type="button" onmousedown="animation.play();" style="position:absolute;top:50px;left:20px;" >play animation</button-->
+
+
+    </body>
+</html>
