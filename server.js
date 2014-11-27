@@ -2,27 +2,32 @@
 var url = require('url');
 var fs = require('fs');
 var mime = require('mime');
+var WebSocketServer = require('websocket').server;
 
-var WebSocketServer = require('ws').Server;
-
-
+var allTanks = {};
 
 // HTTP Server
 var server = http.createServer(function(req, res) {
 	var reqObject = url.parse(req.url, true);
 	var action = reqObject.pathname;
-	console.log('action:',req.headers.host,' - ',action,'-');
+	console.log('action: -',action,'-');
 	try {
 		if(action == '/'){
 			var file = fs.readFileSync('./index.html');
 			res.writeHead(200, {'content-type': 'text/html'});
 		} else {
-			var file = fs.readFileSync('.'+action);	
-			res.writeHead(200, {'Content-Type': mime.lookup('.'+action)});
+			if( action != '/server.js' && action != '/mongoDB.js' ) {
+				var file = fs.readFileSync('.'+action);	
+				res.writeHead(200, {'Content-Type': mime.lookup('.'+action)});
+			} else {
+				res.writeHead(404, {'Content-Type': 'text/html'});
+				res.end(req.url + " not found.");
+				return;
+			};
 		};
 	} catch (e) {
 		if (e.code === 'ENOENT') {
-			console.log('File: '+ action +' not found!');
+			console.log('File not found!');
 			res.writeHead(404, {'Content-Type': 'text/html'});
 			res.end(req.url + " not found.");
 			return;
@@ -31,62 +36,72 @@ var server = http.createServer(function(req, res) {
 		}
 	};
 	res.end(file, 'binary');
-// to use port 80 on ubuntu: sudo node JSFILE
+	// to use port 80 on ubuntu: sudo node JSFILE
 }).listen(80);
 
-
-var wss = new WebSocketServer( {port: 8080} );
-
-
-wss.on('connection', function(ws) {
-	wsN = ws;
-
-	console.log(ws);
-
-    ws.on('message', function(message) {
-        //console.log('received: %s', message);
-        //ws.send(message);
-        count += 1;
-    });
-    ws.send('something');
-});
-
-var count = 0;
-var wsN = null;
-setInterval(function(){
-	if( wsN !== null ) {
-		wsN.send('-');
-	};
-},10);
-
-setInterval(function(){
-	console.log(count);
-	count = 0;
-},1000);
-
-
-/*
 // WEBSOCKET Server
 wsServer = new WebSocketServer({
 	httpServer: server
 });
-
 var connectionIDCounter = 0;
 var allConnections = {};
 
 wsServer.on('request',function(request) {
 	var connection = request.accept(null,request.origin);
-	connection.id = connectionIDCounter ++;
+	connection.id = (connectionIDCounter ++).toString();
+	//connection.authenticated = false;
 	allConnections[connection.id] = connection;
+	
+	sendMessageToClient( connection.id, {msg:'connectionId', id: connection.id } );
+
+	for( singleConnection in allConnections ){
+		if( singleConnection !== connection.id ){
+			allConnections[singleConnection].send(JSON.stringify( { msg:'newPlayerConnected' , id : connection.id } ) );	
+		};
+	};
+
+	for( playerid in allTanks ){
+		connection.send( JSON.stringify( allTanks[ playerid ] ) );
+	};
+
 	// on message
 	connection.on('message',function(message){
-			console.log('message.utf8Data: ',message.utf8Data);			
-			connection.send( 'Hi yourself! :)' );
-	});
+		var msgObject = JSON.parse(message.utf8Data);
+		console.log('incoming msgObject: ',connection.id,msgObject);
+		
+		//if( connection.authenticated !== false) {
+		for( singleConnection in allConnections ){
+			allConnections[singleConnection].send(message.utf8Data);
+		};
+
+       if(msgObject.msg == 'joiningGame') {
+            allTanks[msgObject.id] = msgObject;    
+        }; 
+
+	}); // end of message handling
+
 	// on close
 	connection.on('close',function() {
+		for( singleConnection in allConnections ){
+			if( singleConnection !== connection.id ){
+				allConnections[singleConnection].send(JSON.stringify( { msg:'playerDisconnect' , id : connection.id } ) );	
+			};
+		};
+
+		if( allTanks[connection.id] !== undefined ){
+			delete  allTanks[connection.id];
+		};
+
 		delete allConnections[connection.id];
 	});
 });
-*/
+
+GLOBAL.sendMessageToClient = function(connectionID,msgObject) {
+	console.log('connectionID: ',connectionID);
+	console.log('msgObject: ',msgObject);
+	msgObject = JSON.stringify(msgObject);
+	allConnections[connectionID].send(msgObject);
+};
+
+
 
