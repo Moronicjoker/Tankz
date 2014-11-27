@@ -66,17 +66,30 @@ wsServer.on('request',function(request) {
 
 	// on message
 	connection.on('message',function(message){
-		var msgObject = JSON.parse(message.utf8Data);
-		console.log('incoming msgObject: ',connection.id,msgObject);
-		
-		//if( connection.authenticated !== false) {
-		for( singleConnection in allConnections ){
-			allConnections[singleConnection].send(message.utf8Data);
+
+		if( isJsonString( message.utf8Data ) ){
+
+			var msgObject = JSON.parse(message.utf8Data);
+			console.log('incoming msgObject: ',connection.id,msgObject);
+			
+			//if( connection.authenticated !== false) {
+			for( singleConnection in allConnections ){
+				allConnections[singleConnection].send(message.utf8Data);
+			};
+
+	       if(msgObject.msg == 'joiningGame') {
+	            allTanks[msgObject.id] = msgObject;    
+	        }; 
+
+
+		} else {
+
+			for( singleConnection in allConnections ){
+				allConnections[singleConnection].send(message.utf8Data);
+			};
+
 		};
 
-       if(msgObject.msg == 'joiningGame') {
-            allTanks[msgObject.id] = msgObject;    
-        }; 
 
 	}); // end of message handling
 
@@ -97,11 +110,18 @@ wsServer.on('request',function(request) {
 });
 
 GLOBAL.sendMessageToClient = function(connectionID,msgObject) {
-	console.log('connectionID: ',connectionID);
-	console.log('msgObject: ',msgObject);
+	//console.log('connectionID: ',connectionID);
+	//console.log('msgObject: ',msgObject);
 	msgObject = JSON.stringify(msgObject);
 	allConnections[connectionID].send(msgObject);
 };
 
-
+function isJsonString( str ) {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+};
 

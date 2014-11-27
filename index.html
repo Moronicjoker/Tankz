@@ -24,40 +24,73 @@
                 };
                 
                 socket.onmessage = function(msg){
-                    var msgObject = JSON.parse(msg.data);
-                    //console.log(msgObject);
-                    if(msgObject.msg == 'connectionId') {
-                        connectionId = msgObject.id;
-                        userInfo.name = 'Player-' + msgObject.id;
-                        document.getElementById('userName').value = userInfo.name;
-                    };
+                    console.log('msg: ', msg );
 
-                    if(msgObject.msg == 'chatMsg') {
-                        chat.innerHTML += '<span style="color:'+msgObject.color+';">'+ msgObject.chatMsg+'</span><br>';
-                        chat.scrollTop = chat.scrollHeight;
-                    };  
+                    if( isJsonString( msg.data ) ){ 
 
-                    if(msgObject.msg == 'joiningGame') {
-                        if( msgObject.id !== connectionId ){
-                            allTanks[msgObject.id] = createTank(msgObject.color);
-                            chat.innerHTML += '<span style="color:'+msgObject.color+';">'+ msgObject.name +' joined the game</span><br>';
+                        var msgObject = JSON.parse(msg.data);
+                        //console.log(msgObject);
+                        if(msgObject.msg == 'connectionId') {
+                            connectionId = msgObject.id;
+                            userInfo.name = 'Player-' + msgObject.id;
+                            document.getElementById('userName').value = userInfo.name;
+                        };
+
+                        if(msgObject.msg == 'chatMsg') {
+                            chat.innerHTML += '<span style="color:'+msgObject.color+';">'+ msgObject.chatMsg+'</span><br>';
                             chat.scrollTop = chat.scrollHeight;
+                        };  
+
+                        if(msgObject.msg == 'joiningGame') {
+                            if( msgObject.id !== connectionId ){
+                                allTanks[msgObject.id] = createTank(msgObject.color);
+                                chat.innerHTML += '<span style="color:'+msgObject.color+';">'+ msgObject.name +' joined the game</span><br>';
+                                chat.scrollTop = chat.scrollHeight;
+                            };
+                        }; 
+
+
+                        if(msgObject.msg == 'moving') {
+                            if( msgObject.id !== connectionId ){
+                                allTanks[msgObject.id].mesh.position.x = msgObject.coords.x;
+                                allTanks[msgObject.id].mesh.position.z = msgObject.coords.y;
+                                allTanks[msgObject.id].mesh.rotation.y = msgObject.coords.rot;
+                            };
                         };
-                    }; 
 
-
-                    if(msgObject.msg == 'moving') {
-                        if( msgObject.id !== connectionId ){
-                            allTanks[msgObject.id].mesh.position.x = msgObject.coords.x;
-                            allTanks[msgObject.id].mesh.position.z = msgObject.coords.y;
-                            allTanks[msgObject.id].mesh.rotation.y = msgObject.coords.rot;
+                        if(msgObject.msg == 'playerDisconnect') {
+                            scene.remove(allTanks[msgObject.id].mesh)
+                            delete  allTanks[msgObject.id];
                         };
-                    };
 
-                    if(msgObject.msg == 'playerDisconnect') {
-                        scene.remove(allTanks[msgObject.id].mesh)
-                        delete  allTanks[msgObject.id];
-                    };
+
+                    } else {
+
+                        
+
+                            var tmpCoords = msg.data.split('_');
+
+                            console.log(tmpCoords);
+
+
+
+                             if( tmpCoords[0] !== connectionId ){
+
+                                var currentTank = allTanks[ tmpCoords[0] ];
+
+                                currentTank.mesh.position.x = tmpCoords[1];
+                                currentTank.mesh.position.z = tmpCoords[2];
+                                currentTank.mesh.rotation.y = tmpCoords[3];
+                                
+                             };
+                            
+                    
+
+
+                        
+                    }
+
+
 
                 };
             };
@@ -65,6 +98,16 @@
             function sendWebsocketMessage(msgObject) {
                 msgObject = JSON.stringify(msgObject);
                 socket.send(msgObject);
+            };
+
+
+            function isJsonString( str ) {
+                try {
+                    JSON.parse(str);
+                } catch (e) {
+                    return false;
+                }
+                return true;
             };
 
 
@@ -371,12 +414,19 @@
 
 
                     if( sendPosition == 1 ){
+                        /*
                         sendWebsocketMessage(
                             { msg : 'moving', id : connectionId, coords : {  x : userTank.x, y : userTank.y, rot : userTank.rotation * - 1 }  }
                         );
+                        */
+
+                        var coordArray = [ connectionId, userTank.x , userTank.y, userTank.rotation * - 1 ];
+
+                        socket.send( coordArray.join('_') );
+
                         sendPosition = 0;
                     } else {
-                        sendPosition = 1;
+                        sendPosition += 1;
                     };
                     
 
@@ -429,8 +479,8 @@
                         var posY = userTank.y + speed * Math.sin( userTank.rotation + Math.PI / 2  + Math.PI );                      
                     };
 
-                    userTank.x = posX;
-                    userTank.y = posY;
+                    userTank.x = parseInt(posX);
+                    userTank.y = parseInt(posY);
                 };
             };
 
